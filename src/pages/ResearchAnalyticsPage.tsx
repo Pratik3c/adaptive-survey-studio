@@ -7,7 +7,7 @@ import { ResponseDistribution } from '../components/analytics/ResponseDistributi
 import { InsightsPanel } from '../components/analytics/InsightsPanel';
 import { analyticsApi } from '../services/analyticsApi';
 import { researchApi } from '../services/researchApi';
-import { ResearchAnalytics, AiInsight } from '../types/analytics';
+import { ResearchAnalytics, ProjectInsightReport } from '../types/analytics';
 import { ResearchProject } from '../types/research';
 import { triggerBlobDownload } from '../lib/utils';
 import { useToast } from '../lib/toast';
@@ -26,11 +26,19 @@ export function ResearchAnalyticsPage() {
   const { researchId } = useParams<{ researchId: string }>();
   const [project, setProject] = useState<ResearchProject | null>(null);
   const [analytics, setAnalytics] = useState<ResearchAnalytics | null>(null);
-  const [insights, setInsights] = useState<AiInsight | null>(null);
+  // const [insights, setInsights] = useState<AiInsight | null>(null);
+  const [insights, setInsights] = useState<ProjectInsightReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const toast = useToast();
+
+  const completionRate =
+  analytics && analytics.eligible_sessions > 0
+    ? Math.round(
+        (analytics.completed_sessions / analytics.eligible_sessions) * 100
+      )
+    : 0;
 
   useEffect(() => {
     async function load() {
@@ -141,7 +149,7 @@ export function ResearchAnalyticsPage() {
       />
 
       {/* Aggregate Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="Total Respondent Sessions"
           value={analytics.total_sessions}
@@ -167,22 +175,254 @@ export function ResearchAnalyticsPage() {
           subtext="Optimal construct entropy"
           icon={<Target className="w-4 h-4 text-teal-600" />}
         />
+        <MetricCard
+          label="Dimensions Saturated"
+          value={analytics?.dimensions?.length ?? 0}
+          subtext="Optimal construct entropy"
+          icon={<Target className="w-4 h-4 text-teal-600" />}
+        />
+      </div> */}
+
+      {/* Aggregate Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Total Sessions"
+          value={analytics.total_sessions}
+          subtext="All initiated survey sessions"
+          icon={<Users className="w-4 h-4 text-slate-600" />}
+        />
+
+        <MetricCard
+          label="Eligible Sessions"
+          value={analytics.eligible_sessions}
+          subtext="Sessions excluding ineligible respondents"
+          icon={<Users className="w-4 h-4 text-indigo-600" />}
+        />
+
+        <MetricCard
+          label="Completed Sessions"
+          value={analytics.completed_sessions}
+          subtext={`${completionRate}% of eligible sessions`}
+          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+        />
+
+        <MetricCard
+          label="Research Dimensions"
+          value={analytics.dimensions.length}
+          subtext="Dimensions tracked by the research plan"
+          icon={<Target className="w-4 h-4 text-teal-600" />}
+        />
       </div>
 
       {/* Dimensional Coverage Bar Chart */}
-      <CoverageChart
-        coverage={analytics.dimension_coverage}
+      {/* <CoverageChart
+        coverage={analytics.dimensions}
         title="Cross-Cohort Dimensional Construct Saturation"
         subtitle="Tracking target questions answered across all completed sessions"
-      />
+      /> */}
+
+      {/* Research Dimension Coverage */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">
+            Research Dimension Coverage
+          </h3>
+
+          <p className="text-xs text-slate-500 mt-1">
+            Average achieved coverage compared with each dimension's target.
+          </p>
+        </div>
+
+        {analytics.dimensions.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            No research dimensions are available.
+          </p>
+        ) : (
+          <div className="space-y-5">
+            {analytics.dimensions.map((dimension) => {
+              const achieved = Math.max(
+                0,
+                Math.min(dimension.average_achieved_coverage, 1)
+              );
+
+              const target = Math.max(
+                0,
+                Math.min(dimension.target_coverage, 1)
+              );
+
+              const attainment = Math.max(
+                0,
+                Math.min(dimension.average_target_attainment, 1)
+              );
+
+              return (
+                <div key={dimension.dimension_id} className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {dimension.name}
+                      </p>
+
+                      <p className="text-xs text-slate-500">
+                        Importance: {Number(dimension.importance).toFixed(2)}
+                        {' · '}
+                        Target: {(target * 100).toFixed(1)}%
+                      </p>
+                    </div>
+
+                    <div className="text-sm sm:text-right">
+                      <span className="font-semibold text-slate-900">
+                        {(achieved * 100).toFixed(1)}%
+                      </span>
+
+                      <span className="text-xs text-slate-500">
+                        {' '}achieved
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-indigo-600 transition-all"
+                      style={{ width: `${achieved * 100}%` }}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap justify-between gap-2 text-xs text-slate-500">
+                    <span>
+                      Target attainment: {(attainment * 100).toFixed(1)}%
+                    </span>
+
+                    <span>
+                      Coverage gap: {(dimension.target_gap * 100).toFixed(1)}%
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-400">
+                    Coverage records: {dimension.sessions_with_coverage}
+                    {' · '}
+                    Eligible sessions without coverage:{" "}
+                    {dimension.eligible_sessions_without_coverage}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Question Response Distributions */}
-      {analytics.distribution && (
+      {/* {analytics.distribution && (
         <ResponseDistribution distribution={analytics.distribution} />
+      )} */}
+
+      {/* Question Response Distributions */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">
+            Question Response Distributions
+          </h3>
+
+          <p className="text-xs text-slate-500 mt-1">
+            Answer counts for each question across eligible respondent sessions.
+          </p>
+        </div>
+
+        {analytics.question_results.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            No question results are available yet.
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {analytics.question_results.map((question) => {
+              const maxCount = Math.max(
+                1,
+                ...question.answer_distribution.map((item) => item.count)
+              );
+
+              return (
+                <div
+                  key={`${question.question_id}-${question.question}`}
+                  className="border-b border-slate-100 pb-5 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-xs font-semibold text-indigo-600">
+                        {question.question_id}
+                      </p>
+
+                      <h4 className="text-sm font-medium text-slate-900 mt-1">
+                        {question.question}
+                      </h4>
+                    </div>
+
+                    <span className="shrink-0 text-xs text-slate-500">
+                      {question.responses} responses
+                    </span>
+                  </div>
+
+                  {question.answer_distribution.length === 0 ? (
+                    <p className="text-xs text-slate-400">
+                      No responses recorded for this question.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {question.answer_distribution.map((item, index) => (
+                        <div
+                          key={`${item.answer}-${index}`}
+                          className="space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className="text-slate-700 break-words">
+                              {item.answer}
+                            </span>
+
+                            <span className="text-slate-500 shrink-0">
+                              {item.count}
+                            </span>
+                          </div>
+
+                          <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-indigo-500"
+                              style={{
+                                width: `${(item.count / maxCount) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Analytics Limitations */}
+      {analytics.limitations.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-amber-900">
+            How to interpret these results
+          </h3>
+
+          <ul className="mt-3 space-y-2 list-disc pl-5">
+            {analytics.limitations.map((limitation, index) => (
+              <li
+                key={index}
+                className="text-xs leading-relaxed text-amber-900"
+              >
+                {limitation}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Objective Validations if present */}
-      {analytics.objective_findings && analytics.objective_findings.length > 0 && (
+      {/* {analytics.objective_findings && analytics.objective_findings.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Research Hypothesis & Objective Findings</h3>
@@ -202,7 +442,7 @@ export function ResearchAnalyticsPage() {
             ))}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* AI Insights & Synthesis Panel */}
       <InsightsPanel

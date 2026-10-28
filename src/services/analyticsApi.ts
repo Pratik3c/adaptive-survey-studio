@@ -1,7 +1,7 @@
 import { apiFetch, apiFetchBlob } from './apiClient';
 import { isSandboxMode } from './apiConfig';
 import { MockBackend } from './mockBackend';
-import { SessionReport, ResearchAnalytics, AiInsight } from '../types/analytics';
+import { SessionReport, ResearchAnalytics, ProjectInsightReport } from '../types/analytics';
 
 export const analyticsApi = {
   /**
@@ -35,14 +35,14 @@ export const analyticsApi = {
    * Generates AI insights for an individual survey session.
    * Calls POST /api/v1/sessions/{session_id}/insights
    */
-  async generateSessionInsights(sessionId: string): Promise<AiInsight> {
+  async generateSessionInsights(sessionId: string): Promise<ProjectInsightReport> {
     if (isSandboxMode()) {
       await new Promise((r) => setTimeout(r, 600));
       return MockBackend.generateSessionInsights(sessionId);
     }
 
     const encodedSessionId = encodeURIComponent(sessionId);
-    return await apiFetch<AiInsight>(`/api/v1/sessions/${encodedSessionId}/insights`, {
+    return await apiFetch<ProjectInsightReport>(`/api/v1/sessions/${encodedSessionId}/insights`, {
       method: 'POST',
     });
   },
@@ -78,14 +78,14 @@ export const analyticsApi = {
    * Generates research-level AI insights and executive findings.
    * Calls POST /api/v1/research/{research_id}/insights
    */
-  async generateResearchInsights(researchId: number | string): Promise<AiInsight> {
+  async generateResearchInsights(researchId: number | string): Promise<ProjectInsightReport> {
     if (isSandboxMode()) {
       await new Promise((r) => setTimeout(r, 700));
       return MockBackend.generateResearchInsights(researchId);
     }
 
     const encodedId = encodeURIComponent(String(researchId));
-    return await apiFetch<AiInsight>(`/api/v1/research/${encodedId}/insights`, {
+    return await apiFetch<ProjectInsightReport>(`/api/v1/research/${encodedId}/insights`, {
       method: 'POST',
     });
   },
